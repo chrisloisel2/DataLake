@@ -2,6 +2,8 @@
 
 import sys
 
+current_word = None
+
 for line in sys.stdin:
     word, count = line.strip().split('\t')
     count = int(count)
