@@ -102,7 +102,7 @@ services:
       - "2181:2181"
 
   backend:
-    build: ./backend
+    build: ./producer
     container_name: backend
     restart: always
     ports:
@@ -115,27 +115,27 @@ services:
       - kafka
       - zookeeper
 
-  hive-metastore:
-    image: apache/hive:4.0.0
-    container_name: hive-metastore
-    ports:
-      - "9083:9083"
-    environment:
-      - SERVICE_NAME=metastore
-    command: >
-      bash -c "hive --service metastore"
+#   hive-metastore:
+#     image: apache/hive:4.0.0
+#     container_name: hive-metastore
+#     ports:
+#       - "9083:9083"
+#     environment:
+#       - SERVICE_NAME=metastore
+#     command: >
+#       bash -c "hive --service metastore"
 
-  hive-server:
-    image: apache/hive:4.0.0
-    container_name: hive-server
-    ports:
-      - "10000:10000"
-      - "10002:10002"
-    environment:
-      - SERVICE_NAME=hiveserver2
-      - HIVE_SITE_CONF=/opt/hive/conf
-    command: >
-      bash -c "hive --service hiveserver2 --hiveconf hive.metastore.uris=thrift://hive-metastore:9083"
+#   hive-server:
+#     image: apache/hive:4.0.0
+#     container_name: hive-server
+#     ports:
+#       - "10000:10000"
+#       - "10002:10002"
+#     environment:
+#       - SERVICE_NAME=hiveserver2
+#       - HIVE_SITE_CONF=/opt/hive/conf
+#     command: >
+#       bash -c "hive --service hiveserver2 --hiveconf hive.metastore.uris=thrift://hive-metastore:9083"
 
 volumes:
   hadoop_namenode:

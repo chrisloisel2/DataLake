@@ -8,6 +8,9 @@ spark = SparkSession.builder \
 # Read the file from HDFS
 df = spark.read.text("hdfs://namenode:9000/liste.txt")
 
+# Save the file to HDFS
+df.write.text("hdfs://namenode:9000/liste-modified.txt")
+
 # Show the contents of the file
 df.show()
 
