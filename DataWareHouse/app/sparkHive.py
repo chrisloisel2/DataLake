@@ -1,4 +1,5 @@
 from pyhive import hive
+import time
 
 # Hive connection parameters
 hive_host = 'hive-server'
@@ -44,10 +45,11 @@ insert_query = """
 INSERT INTO users (id, nom, prenom, age, email, preferences, solde, ne)
 VALUES ('{}', '{}', '{}', {}, '{}', {}, {}, {})
 """
-for user in user_data:
+for user in user_data: # array('sports','music')
     formatted_preferences = "array(" + ",".join("'{}'".format(p) for p in user[5]) + ")"
     formatted_query = insert_query.format(user[0], user[1], user[2], user[3], user[4], formatted_preferences, user[6], user[7])
     cursor.execute(formatted_query)
+
 
 # Close the cursor and connection
 cursor.close()

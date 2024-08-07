@@ -64,6 +64,7 @@ services:
       - "7077:7077"
     volumes:
       - ./app:/app
+      - ./conf:/opt/hive/conf
     environment:
       - INIT_DAEMON_STEP=setup_spark
       - PATH=/spark/bin:$PATH
@@ -120,6 +121,8 @@ services:
     container_name: hive-metastore
     ports:
       - "9083:9083"
+    volumes:
+      - ./conf:/opt/hive/conf
     environment:
       - SERVICE_NAME=metastore
     command: >
@@ -131,36 +134,13 @@ services:
     ports:
       - "10000:10000"
       - "10002:10002"
+    volumes:
+      - ./conf:/opt/hive/conf
     environment:
       - SERVICE_NAME=hiveserver2
       - HIVE_SITE_CONF=/opt/hive/conf
     command: >
       bash -c "hive --service hiveserver2 --hiveconf hive.metastore.uris=thrift://hive-metastore:9083"
-
-
-  superset:
-    image: apache/superset:latest
-    container_name: superset
-    environment:
-      SUPERSET_LOAD_EXAMPLES: "no"
-      SUPERSET_SECRET_KEY: "thisISaSECRET_1234"
-      SUPERSET_ADMIN_USERNAME: "admin"
-      SUPERSET_ADMIN_FIRST_NAME: "admin"
-      SUPERSET_ADMIN_LAST_NAME: "admin"
-      SUPERSET_ADMIN_EMAIL: "admin@superset.com"
-      SUPERSET_ADMIN_PASSWORD: "admin"
-    ports:
-      - "8088:8088"
-    depends_on:
-      - hive-server
-    volumes:
-      - superset_home:/app/superset_home
-    command: >
-      /bin/bash -c "
-      superset db upgrade &&
-      superset init &&
-      superset run -h 0.0.0.0 -p 8088
-      "
 
 volumes:
   hadoop_namenode:
