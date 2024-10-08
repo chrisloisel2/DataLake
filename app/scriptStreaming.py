@@ -8,7 +8,7 @@ spark = SparkSession.builder.appName("StocksToHDFS").getOrCreate()
 spark.sparkContext.setLogLevel("WARN")
 
 # Selectionner mon topic
-kafka_topic_name = "topic2"
+kafka_topic_name = "topic1"
 
 # Selectionner mon server
 kafka_bootstrap_servers = 'kafka:9092'

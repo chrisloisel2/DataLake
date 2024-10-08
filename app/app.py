@@ -2,6 +2,7 @@ from flask import Flask, jsonify
 from hdfs import InsecureClient
 import os
 
+
 app = Flask(__name__)
 
 # Configurer le client HDFS
