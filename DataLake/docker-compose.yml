@@ -101,12 +101,52 @@ services:
     ports:
       - "2181:2181"
 
+  hive-metastore:
+    image: apache/hive:4.0.0
+    container_name: hive-metastore
+    ports:
+      - "9083:9083"
+    environment:
+      - SERVICE_NAME=metastore
+    command: >
+      bash -c "hive --service metastore"
+
+
+
+  hive-server:
+    image: apache/hive:4.0.0
+    container_name: hive-server
+    ports:
+      - "10000:10000"
+      - "10002:10002"
+    environment:
+      - SERVICE_NAME=hiveserver2
+      - HIVE_SITE_CONF=/opt/hive/conf
+    command: >
+      bash -c "hive --service hiveserver2 --hiveconf hive.metastore.uris=thrift://hive-metastore:9083"
+
+  nifi:
+    image: apache/nifi:latest
+    container_name: nifi
+    restart: always
+    ports:
+      - "8082:8080"
+      - "8443:8443"
+    environment:
+      - NIFI_WEB_HTTP_PORT=8080
+    volumes:
+      - nifi_data:/opt/nifi/nifi-current/data
+      - ./nifi_conf:/opt/nifi/conf
+    depends_on:
+      - kafka
+
+
   backend:
-    build: ./producer
+    build: ./backend
     container_name: backend
     restart: always
     ports:
-      - "5000:5000"
+      - "5550:5550"
     volumes:
       - ./backend:/app
     environment:
@@ -115,29 +155,8 @@ services:
       - kafka
       - zookeeper
 
-#   hive-metastore:
-#     image: apache/hive:4.0.0
-#     container_name: hive-metastore
-#     ports:
-#       - "9083:9083"
-#     environment:
-#       - SERVICE_NAME=metastore
-#     command: >
-#       bash -c "hive --service metastore"
-
-#   hive-server:
-#     image: apache/hive:4.0.0
-#     container_name: hive-server
-#     ports:
-#       - "10000:10000"
-#       - "10002:10002"
-#     environment:
-#       - SERVICE_NAME=hiveserver2
-#       - HIVE_SITE_CONF=/opt/hive/conf
-#     command: >
-#       bash -c "hive --service hiveserver2 --hiveconf hive.metastore.uris=thrift://hive-metastore:9083"
-
 volumes:
   hadoop_namenode:
   hadoop_datanode:
   hadoop_historyserver:
+  nifi_data:

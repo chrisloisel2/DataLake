@@ -6,7 +6,9 @@ spark = SparkSession.builder \
 	.getOrCreate()
 
 # Read the file from HDFS
-df = spark.read.text("hdfs://namenode:9000/liste.txt")
+df = spark.read.text("hdfs://namenode:9000/essai.txt")
+
+
 
 # Save the file to HDFS
 df.write.text("hdfs://namenode:9000/liste-modified.txt")

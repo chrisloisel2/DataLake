@@ -5,6 +5,10 @@ spark = SparkSession.builder \
 	.appName("Read from HDFS") \
 	.getOrCreate()
 
+
+# mute le niveau de log
+spark.sparkContext.setLogLevel("ERROR")
+
 df = spark.read.csv("hdfs://namenode:9000/Data/crypto_data_part_1(2).csv", header=True, inferSchema=True)
 
 avg_closing_price = df.groupBy("Cryptomonnaie").agg(avg("PrixCloture").alias("PrixClotureMoyen"))
