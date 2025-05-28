@@ -1,6 +1,7 @@
 version: "3"
 
 services:
+# Hadoop
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
     container_name: namenode
@@ -56,14 +57,18 @@ services:
     env_file:
       - ./hadoop.env
 
+# Spark
   spark-master:
     image: bde2020/spark-master:3.3.0-hadoop3.3
     container_name: spark-master
     ports:
       - "8080:8080"
       - "7077:7077"
+      - "5555:5000"
     volumes:
       - ./app:/app
+      - ./hive-conf:/spark/conf
+      # - ./config/hive-site.xml:/spark/conf/hive-site.xml
     environment:
       - INIT_DAEMON_STEP=setup_spark
       - PATH=/spark/bin:$PATH
@@ -79,6 +84,7 @@ services:
       - SPARK_MASTER=spark://spark-master:7077
       - PATH=/spark/bin:$PATH
 
+# Kafka
   kafka:
     image: wurstmeister/kafka
     container_name: kafka
@@ -101,62 +107,168 @@ services:
     ports:
       - "2181:2181"
 
+
   hive-metastore:
-    image: apache/hive:4.0.0
+    image: bde2020/hive:2.3.2-postgresql-metastore
     container_name: hive-metastore
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      HIVE_METASTORE_DB_TYPE: postgres
+      HIVE_METASTORE_HOST: postgres
+      HIVE_METASTORE_DB_NAME: metastore
+      HIVE_METASTORE_USER: hiveuser
+      HIVE_METASTORE_PASS: hivepassword
+      SERVICE_PRECONDITION: postgres:5432 namenode:9000
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
     ports:
       - "9083:9083"
-    environment:
-      - SERVICE_NAME=metastore
-    command: >
-      bash -c "hive --service metastore"
-
-
+    volumes:
+      - warehouse:/user/hive/warehouse
+      - ./hive-conf:/opt/hive/conf
+      - ./postgresql-42.6.0.jar:/opt/hive/lib/postgresql-42.6.0.jar
 
   hive-server:
-    image: apache/hive:4.0.0
+    image: bde2020/hive:2.3.2-postgresql-metastore
     container_name: hive-server
+    environment:
+      HIVE_METASTORE_URI: thrift://hive-metastore:9083
+      SERVICE_NAME: hiveserver2
+      HIVE_CONF_DIR: /opt/hive/conf
+      SERVICE_PRECONDITION: hive-metastore:9083 namenode:9000
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
     ports:
       - "10000:10000"
-      - "10002:10002"
-    environment:
-      - SERVICE_NAME=hiveserver2
-      - HIVE_SITE_CONF=/opt/hive/conf
-    command: >
-      bash -c "hive --service hiveserver2 --hiveconf hive.metastore.uris=thrift://hive-metastore:9083"
+    depends_on:
+      - hive-metastore
+    volumes:
+      - ./hive-conf:/opt/hive/conf
+      - ./postgresql-42.6.0.jar:/opt/hive/lib/postgresql-42.6.0.jar
 
+# Visualization
+  # superset:
+  #   build:
+  #     context: ./superset
+  #     dockerfile: Dockerfile-superset
+  #   container_name: superset
+  #   restart: always
+  #   ports:
+  #     - "8089:8088"
+  #   environment:
+  #     - SUPERSET_SECRET_KEY=mysecretkey
+  #     - PYTHONPATH=/app/pythonpath
+  #   depends_on:
+  #     - hive-server
+  #     - postgres-airflow
+  #   volumes:
+  #     - ./superset_home:/app/superset_home
+  #   command: >
+  #     bash -c "
+  #     superset db upgrade &&
+  #     superset fab create-admin --username admin --firstname Superset --lastname Admin --email admin@superset.com --password admin || true &&
+  #     superset init &&
+  #     superset run -h 0.0.0.0 -p 8088
+  #     "
+
+# Ochestraion
   nifi:
-    image: apache/nifi:latest
-    container_name: nifi
-    restart: always
-    ports:
-      - "8082:8080"
-      - "8443:8443"
+      image: apache/nifi:latest
+      container_name: nifi
+      restart: always
+      ports:
+        - "8082:8080" # HTTP
+        - "8443:8443" # HTTPS
+      environment:
+        - NIFI_WEB_HTTP_PORT=8080
+      volumes:
+        - nifi_data:/opt/nifi/nifi-current/data
+        - ./nifi_conf:/opt/nifi/conf
+      depends_on:
+        - kafka
+
+  # backend:
+  #     build: ./backend
+  #     container_name: backend
+  #     restart: always
+  #     ports:
+  #       - "5550:5550"
+  #     volumes:
+  #       - ./backend:/app
+  #     environment:
+  #       - FLASK_ENV=development
+  #     depends_on:
+  #       - kafka
+  #       - zookeeper
+
+  postgres:
+    image: postgres:13
+    container_name: postgres
     environment:
-      - NIFI_WEB_HTTP_PORT=8080
+      POSTGRES_DB: metastore
+      POSTGRES_USER: hiveuser
+      POSTGRES_PASSWORD: hivepassword
+    ports:
+      - "5432:5432"
     volumes:
-      - nifi_data:/opt/nifi/nifi-current/data
-      - ./nifi_conf:/opt/nifi/conf
-    depends_on:
-      - kafka
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hiveuser -d metastore"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 
-  backend:
-    build: ./backend
-    container_name: backend
-    restart: always
-    ports:
-      - "5550:5550"
-    volumes:
-      - ./backend:/app
-    environment:
-      - FLASK_ENV=development
-    depends_on:
-      - kafka
-      - zookeeper
+  # postgres-airflow:
+  #   image: postgres:15
+  #   container_name: postgres-airflow
+  #   environment:
+  #     - POSTGRES_USER=airflow
+  #     - POSTGRES_PASSWORD=airflow
+  #     - POSTGRES_DB=airflow
+  #     - POSTGRES_HOST_AUTH_METHOD=md5
+  #   ports:
+  #     - "5433:5432"
+
+  # airflow:
+  #   build:
+  #     context: .
+  #     dockerfile: ./airflow/Dockerfile-airflow
+  #   container_name: airflow
+  #   depends_on:
+  #     - postgres-airflow
+  #   environment:
+  #     - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+  #     - AIRFLOW__CORE__FERNET_KEY=Lun1uazC_dvkd-kgrYDbBn7wY4OGxrMW-Ns4iRdJ_-4=
+  #     - AIRFLOW__CORE__DEFAULT_TIMEZONE=Europe/Paris
+  #     - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres-airflow:5432/airflow
+  #     - AIRFLOW__CORE__DAGS_FOLDER=/usr/local/airflow/dags
+  #   command: >
+  #     bash -c "
+  #     airflow db init;
+  #     airflow users create --username admin --password admin --firstname admin --lastname admin --role Admin --email admin@example.com || true;
+  #     airflow webserver &
+  #     airflow scheduler
+  #     "
+  #   ports:
+  #     - "18080:8080"
+  #   volumes:
+  #     - ./airflow/dags:/usr/local/airflow/dags
+  #     - ./airflow/plugins:/usr/local/airflow/plugins
+  #     - ./airflow/logs:/usr/local/airflow/logs
+  #     - airflow_db_volume:/var/lib/postgresql/data
+  #     - ./airflow/requirements.txt:/requirements.txt
+
+
 
 volumes:
   hadoop_namenode:
   hadoop_datanode:
   hadoop_historyserver:
   nifi_data:
+  airflow_db_volume:
+  superset_home:
+  postgres_data:
+  warehouse:
+  pg_data:

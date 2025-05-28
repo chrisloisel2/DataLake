@@ -1,0 +1,35 @@
+version: '3'
+
+services:
+  postgres-airflow:
+    image: postgres:15
+    container_name: postgres-airflow
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+      - POSTGRES_HOST_AUTH_METHOD=md5
+    ports:
+      - "5433:5432"
+
+  airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile-airflow
+    container_name: airflow
+    depends_on:
+      - postgres-airflow
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__FERNET_KEY=this_is_a_fernet_key_replace_me
+      - AIRFLOW__CORE__DEFAULT_TIMEZONE=Europe/Paris
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres-airflow:5432/airflow
+    command: >
+      bash -c "
+      airflow db init;
+      airflow users create --username admin --password admin --firstname admin --lastname admin --role Admin --email admin@example.com || true;
+      airflow webserver &
+      airflow scheduler
+      "
+    ports:
+      - "18080:8080"

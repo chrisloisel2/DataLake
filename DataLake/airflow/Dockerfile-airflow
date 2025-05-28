@@ -1,0 +1,53 @@
+FROM apache/airflow:2.6.3
+
+USER root
+
+RUN apt-get update && \
+    apt-get install -y \
+    libsasl2-dev \
+    gcc \
+    g++ \
+    python3-dev \
+    libpq-dev \
+    make \
+    openjdk-11-jdk \
+    wget \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Hive
+RUN wget https://archive.apache.org/dist/hive/hive-3.1.3/apache-hive-3.1.3-bin.tar.gz && \
+    tar -xzf apache-hive-3.1.3-bin.tar.gz -C /opt/ && \
+    mv /opt/apache-hive-3.1.3-bin /opt/hive && \
+    rm apache-hive-3.1.3-bin.tar.gz
+
+# Hadoop (nécessaire pour Hive)
+RUN wget https://archive.apache.org/dist/hadoop/common/hadoop-3.3.1/hadoop-3.3.1.tar.gz && \
+    tar -xzf hadoop-3.3.1.tar.gz -C /opt/ && \
+    mv /opt/hadoop-3.3.1 /opt/hadoop && \
+    rm hadoop-3.3.1.tar.gz
+
+# Wrapper safe
+RUN printf '#!/bin/bash\nexec /opt/hive/bin/beeline "$@"\n' > /usr/bin/beeline && chmod +x /usr/bin/beeline
+RUN printf '#!/bin/bash\nexec /opt/hive/bin/hive "$@"\n' > /usr/bin/hive && chmod +x /usr/bin/hive
+
+# ENV vars
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-arm64
+ENV HIVE_HOME=/opt/hive
+ENV HADOOP_HOME=/opt/hadoop
+ENV PATH=$PATH:$HIVE_HOME/bin:$HADOOP_HOME/bin
+
+USER airflow
+
+RUN pip install --no-cache-dir "apache-airflow==2.6.3"
+
+RUN pip install --no-cache-dir \
+    "apache-airflow-providers-http==4.1.0" \
+    "apache-airflow-providers-postgres==5.5.0"
+
+RUN pip install --no-cache-dir \
+    "apache-airflow-providers-apache-hive[jdbc]==6.1.0" \
+    "impyla==0.18.0" \
+    "thrift-sasl<0.5.0,>0.4.0"
+
+RUN pip uninstall -y sasl pyhive thrift

@@ -1,0 +1,17 @@
+FROM apache/superset:latest
+
+USER root
+
+RUN apt-get update && \
+    apt-get install -y build-essential libsasl2-dev python3-dev libldap2-dev libssl-dev && \
+    pip install --no-cache-dir \
+        pyhive[hive] \
+        thrift \
+        thrift-sasl \
+        sasl \
+        pandas \
+        pyopenssl \
+		pyMongo && \
+    apt-get clean
+
+USER superset

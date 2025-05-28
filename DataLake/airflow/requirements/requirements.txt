@@ -1,0 +1,29 @@
+# Core Airflow (version testée sur architecture ARM)
+apache-airflow==2.5.3
+
+# Providers sans dépendances problématiques
+apache-airflow-providers-apache-hive==5.1.0
+apache-airflow-providers-http==4.1.0
+apache-airflow-providers-apache-spark==3.1.0
+
+# Kafka (solution alternative sans SASL)
+kafka-python==2.0.2
+confluent-kafka==1.9.2
+
+# Hive/Hadoop (version pure Python)
+pyhive[hive]==0.6.5 --no-binary=pyhive
+thrift==0.15.0
+thrift-sasl==0.4.3 --no-binary=thrift-sasl
+
+# NiFi
+nipyapi==0.16.0
+
+# Utilitaires
+pandas==1.4.4
+pyarrow==9.0.0
+requests==2.28.1
+
+# Dépendances système nécessaires
+gcc==10.2.1
+python3-dev==3.9.2
+libsasl2-dev==2.1.27

@@ -1,0 +1,11 @@
+FROM apache/airflow:2.5.3-python3.9
+
+USER root
+# Installer libpq-dev (>= 10) et gcc pour pouvoir compiler psycopg2
+RUN apt-get update && apt-get install -y libpq-dev gcc && rm -rf /var/lib/apt/lists/*
+
+USER airflow
+# Mettre à jour pip puis installer psycopg2 (ou psycopg2-binary) dans sa dernière version
+RUN pip install --upgrade pip
+RUN pip install --upgrade psycopg2
+# ou: RUN pip install --upgrade psycopg2-binary
